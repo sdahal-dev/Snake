@@ -1,113 +1,163 @@
-#include "raylib.h";
-#include <vector>;
-#include <string>;
+#include "raylib.h"
+#include <vector>
+#include <string>
+#include <random>
 
 int main() {
-	
-	int windowWidth = 1200;
-	int windowHeight = 800;
 
-	InitWindow(windowWidth, windowHeight, "Pong");
+	InitWindow(800, 800, "Snake");
 	SetTargetFPS(60);
 
+	float centerX = GetScreenWidth() / 2;
+	float centerY = GetScreenHeight() / 2;
+	float bodyWidth = 25, bodyHeight = 25;
+
+	Rectangle startBody = { centerX - (35 / 2), centerY - (35 / 2), bodyWidth, bodyHeight };
+
+	bool gameStarted = false;
+
+	Rectangle startButton = { centerX-50, centerY-25, 100, 50 };
+
+	float textWidth = MeasureText("Start", 25);
+
+	std::string snakeDirection = "up";
+
+	float speed = 5.0f;
+
+	std::random_device random_seed;
+	std::mt19937 gen(random_seed());
+	std::uniform_int_distribution<int> dist(bodyWidth, GetScreenWidth() - bodyWidth);
+
+	bool ballSpawn = false;
+	Vector2 ball = { dist(gen), dist(gen) };
 	
-	float paddleWidth = 35.0f;
-	float paddleHeight = 100.0f;
-
-	float leftXPosition = 0.0f;
-	float leftYPosition = (GetScreenHeight() / 2.0f) - (paddleHeight / 2);
-
-	float rightXPosition = GetScreenWidth() - paddleWidth;
-	float rightYPosition = (GetScreenHeight() / 2.0f) - (paddleHeight / 2);
-
-	float ballX = GetScreenWidth() / 2;
-	float ballY = GetScreenHeight() / 2;
-
-	Vector2 ball = { ballX, ballY };
-	std::pair<float, float> ballSpeed{ 8.0f, 5.0f };
+	std::vector<Rectangle> snakeBody{ startBody };
 
 	int score = 0;
-	bool gameEnded = false;
 
-	while (!WindowShouldClose()) {
+	while (!WindowShouldClose()){
+
+
+		Vector2 mousePosition = GetMousePosition();
+		
 
 		BeginDrawing();
+
 		ClearBackground(BLACK);
+
+		if (CheckCollisionPointRec(mousePosition, startButton)) {
+			if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+				gameStarted = true;
+			}
+		}
 		
-		if (!gameEnded) {
-			Vector2 mousePosition = GetMousePosition();
+		if (gameStarted) {
 
-			if (mousePosition.x < GetScreenWidth() - mousePosition.x) {
+			if (IsKeyPressed(KEY_W)) {
+				snakeDirection = "up";
+			}
+			else if (IsKeyPressed(KEY_D)) {
+				snakeDirection = "right";
+			}
+			else if (IsKeyPressed(KEY_S)) {
+				snakeDirection = "down";
+			}
+			else if (IsKeyPressed(KEY_A)) {
+				snakeDirection = "left";
+			};
 
-				leftYPosition = mousePosition.y;
+			float x = 0.0f, y = 0.0f;
 
+			if (snakeDirection == "up") {
+				y = -speed;
+			}
+			else if (snakeDirection == "down") {
+				y = speed;
+			}
+			else if (snakeDirection == "right") {
+				x = speed;
 			}
 			else {
+				x = -speed;
+			};
 
-				rightYPosition = mousePosition.y;
-
+			if (!ballSpawn) {
+				ball = { float(dist(gen)), float(dist(gen)) };
+				ballSpawn = true;
 			}
+			else {
+				if (CheckCollisionCircleRec(ball, 10, snakeBody[0])) {
 
-			Rectangle leftPaddle = { leftXPosition, leftYPosition, paddleWidth, paddleHeight };
-			Rectangle rightPaddle = { rightXPosition, rightYPosition, paddleWidth, paddleHeight };
+					score++;
 
-			ball.x += ballSpeed.first;
-			ball.y += ballSpeed.second;
+					ball = { float(dist(gen)), float(dist(gen)) };
+					
+					int length = snakeBody.size();
+					Rectangle lastPart = snakeBody[length - 1];
 
-			if (CheckCollisionCircleRec(ball, 30, leftPaddle) || CheckCollisionCircleRec(ball, 30, rightPaddle)) {
+					float currentX = lastPart.x;
+					float currentY = lastPart.y;
 
-				ballSpeed.first *= -1;
-				score++;
+					if (snakeDirection == "up") {
+						currentY += bodyHeight;
+					}
+					else if (snakeDirection == "down") {
+						currentY -= bodyHeight;
+					}
+					else if (snakeDirection == "right") {
+						currentX -= bodyWidth;
+					}
+					else {
+						currentX += bodyWidth;
+					}
 
-			}
-			else if (ball.y + 30 >= GetScreenHeight() || ball.y - 30 <= 0) {
+					Rectangle tempPart = { currentX, currentY, bodyWidth, bodyHeight };
 
-				ballSpeed.second *= -1;
+					snakeBody.push_back(tempPart);
 
-			}
-			else if (ball.x + 30 >= GetScreenWidth() || ball.x + -30 <= 0) {
-
-				ballSpeed.first = 0;
-				ballSpeed.second = 0;
-				gameEnded = true;
-
-
-			}
-			DrawRectangleRec(leftPaddle, WHITE);
-			DrawRectangleRec(rightPaddle, WHITE);
-			DrawCircleV(ball, 30.0f, BLUE);
-			DrawText(std::to_string(score).c_str(), GetScreenWidth() / 2, 5, 40, WHITE);
-		}
-		else {
-
-			int textWidth = MeasureText("Game Over", 100);
-			DrawText("Game Over", GetScreenWidth() / 2 - textWidth/2, GetScreenHeight() / 2 - 50, 100, WHITE);
-
-			Rectangle restartButton = { GetScreenWidth() / 2 - 70, GetScreenHeight() / 2 + 75, 140, 50 };
-			DrawRectangleRec(restartButton, BLUE);
-
-			int textTwoWidth = MeasureText("Restart", 25);
-			DrawText("Restart", GetScreenWidth() / 2-textTwoWidth/2, GetScreenHeight() / 2 + 85, 25, WHITE);
-
-			Vector2 mousePosition = GetMousePosition();
-
-			if (CheckCollisionPointRec(mousePosition, restartButton)) {
-
-				if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-					gameEnded = false;
-					score = 0;
-
-					ball.x = GetScreenWidth() / 2;
-					ball.y = GetScreenHeight() / 2;
-
-					ballSpeed = { 8.0f, 5.0f };
 				}
 			}
 
+			DrawCircleV(ball, 10, RED);
+			float scoreWidth = MeasureText("Score: ", 25);
+			DrawText(TextFormat("Score: %d", score), 10, 10, 25, WHITE);
 
+			std::vector<Rectangle> old = snakeBody;
+
+			snakeBody[0].x += x;
+			snakeBody[0].y += y;
+
+			for (size_t i = snakeBody.size() - 1; i > 0; i--) {
+				snakeBody[i] = old[i - 1];
+			}
+
+			if (snakeBody[0].x >= GetScreenWidth()) {
+				snakeBody[0].x = 0;
+			}
+			else if (snakeBody[0].x < 0) {
+				snakeBody[0].x = GetScreenWidth() - bodyWidth;
+			}
+
+			if (snakeBody[0].y >= GetScreenHeight()) {
+				snakeBody[0].y = 0;
+			}
+			else if (snakeBody[0].y < 0) {
+				snakeBody[0].y = GetScreenHeight() - bodyHeight;
+			}
+			
+
+			for (Rectangle& bodyPart : snakeBody) {
+				DrawRectangleRec(bodyPart, WHITE);
+			}
 		}
+		else {
+			DrawRectangleRec(startButton, BLUE);
+			DrawText("Start", centerX-(textWidth/2), centerY-(25/2), 25, WHITE);
+		}
+
 
 		EndDrawing();
 	}
+	
 	CloseWindow();
 }
